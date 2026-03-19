@@ -14,7 +14,113 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      images: {
+        Row: {
+          category_id: string
+          color: string | null
+          composition: string | null
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          measurements: string | null
+          public_url: string
+          size: string | null
+          subcategory_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          color?: string | null
+          composition?: string | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          measurements?: string | null
+          public_url: string
+          size?: string | null
+          subcategory_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          color?: string | null
+          composition?: string | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          measurements?: string | null
+          public_url?: string
+          size?: string | null
+          subcategory_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "images_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "images_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subcategories: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subcategories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
