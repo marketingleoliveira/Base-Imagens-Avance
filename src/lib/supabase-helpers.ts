@@ -16,10 +16,26 @@ export async function fetchSubcategories(categoryId: string) {
   return data;
 }
 
+export async function fetchAllSubcategories() {
+  const { data, error } = await supabase.from("subcategories").select("*").order("name");
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchImages() {
   const { data, error } = await supabase
     .from("images")
     .select("*, categories(name), subcategories(name)")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchImagesByCategory(categoryId: string) {
+  const { data, error } = await supabase
+    .from("images")
+    .select("*, categories(name), subcategories(name)")
+    .eq("category_id", categoryId)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
@@ -62,6 +78,14 @@ export async function saveImageRecord(record: {
 export async function deleteImage(id: string, filePath: string) {
   await supabase.storage.from("product-images").remove([filePath]);
   const { error } = await supabase.from("images").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateImageCategory(imageId: string, categoryId: string, subcategoryId: string | null) {
+  const { error } = await supabase
+    .from("images")
+    .update({ category_id: categoryId, subcategory_id: subcategoryId })
+    .eq("id", imageId);
   if (error) throw error;
 }
 
