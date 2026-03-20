@@ -21,11 +21,9 @@ const Index = () => {
       <div className="min-h-screen flex w-full">
         <CategorySidebar
           selectedCategoryId={selectedCategoryId}
-          selectedSubcategoryId={selectedSubcategoryId}
-          onSelectCategory={setSelectedCategoryId}
-          onSelectSubcategory={(catId, subId) => {
+          onSelectCategory={(catId) => {
             setSelectedCategoryId(catId);
-            setSelectedSubcategoryId(subId);
+            setSelectedSubcategoryId(null);
           }}
         />
 
@@ -41,6 +39,7 @@ const Index = () => {
                 categoryId={selectedCategoryId}
                 categoryName={selectedCategory.name}
                 selectedSubcategoryId={selectedSubcategoryId}
+                onSelectSubcategory={setSelectedSubcategoryId}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground">
