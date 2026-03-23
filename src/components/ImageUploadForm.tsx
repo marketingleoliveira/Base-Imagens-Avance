@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Upload, ImageIcon } from "lucide-react";
+import { Upload, ImageIcon, X } from "lucide-react";
 import {
   fetchCategories,
   fetchSubcategories,
@@ -21,9 +21,13 @@ interface ImageUploadFormProps {
   onSuccess?: () => void;
 }
 
+interface FilePreview {
+  file: File;
+  preview: string;
+}
+
 export function ImageUploadForm({ defaultCategoryId, defaultSubcategoryId, defaultGalleryId, onSuccess }: ImageUploadFormProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [files, setFiles] = useState<FilePreview[]>([]);
   const [categoryId, setCategoryId] = useState(defaultCategoryId || "");
   const [subcategoryId, setSubcategoryId] = useState(defaultSubcategoryId || "");
   const [color, setColor] = useState("");
@@ -31,6 +35,7 @@ export function ImageUploadForm({ defaultCategoryId, defaultSubcategoryId, defau
   const [composition, setComposition] = useState("");
   const [measurements, setMeasurements] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -44,40 +49,56 @@ export function ImageUploadForm({ defaultCategoryId, defaultSubcategoryId, defau
   });
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      setFile(selected);
+    const selected = e.target.files;
+    if (!selected) return;
+
+    const newFiles: FilePreview[] = [];
+    Array.from(selected).forEach((file) => {
       const reader = new FileReader();
-      reader.onload = () => setPreview(reader.result as string);
-      reader.readAsDataURL(selected);
-    }
+      reader.onload = () => {
+        newFiles.push({ file, preview: reader.result as string });
+        if (newFiles.length === selected.length) {
+          setFiles((prev) => [...prev, ...newFiles]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   }, []);
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !categoryId) {
-      toast.error("Selecione uma imagem e uma categoria.");
+    if (files.length === 0 || !categoryId) {
+      toast.error("Selecione ao menos uma imagem e uma categoria.");
       return;
     }
 
     setUploading(true);
+    setProgress(0);
+
     try {
-      const { filePath, publicUrl, fileName } = await uploadImage(file);
-      await saveImageRecord({
-        file_name: fileName,
-        file_path: filePath,
-        public_url: publicUrl,
-        category_id: categoryId,
-        subcategory_id: subcategoryId || null,
-        color: color || undefined,
-        size: size || undefined,
-        composition: composition || undefined,
-        measurements: measurements || undefined,
-        gallery_id: defaultGalleryId || null,
-      });
-      toast.success("Imagem enviada com sucesso!");
-      setFile(null);
-      setPreview(null);
+      for (let i = 0; i < files.length; i++) {
+        const { file } = files[i];
+        const { filePath, publicUrl, fileName } = await uploadImage(file);
+        await saveImageRecord({
+          file_name: fileName,
+          file_path: filePath,
+          public_url: publicUrl,
+          category_id: categoryId,
+          subcategory_id: subcategoryId || null,
+          color: color || undefined,
+          size: size || undefined,
+          composition: composition || undefined,
+          measurements: measurements || undefined,
+          gallery_id: defaultGalleryId || null,
+        });
+        setProgress(i + 1);
+      }
+      toast.success(`${files.length} imagem(ns) enviada(s) com sucesso!`);
+      setFiles([]);
       setColor("");
       setSize("");
       setComposition("");
@@ -85,9 +106,10 @@ export function ImageUploadForm({ defaultCategoryId, defaultSubcategoryId, defau
       onSuccess?.();
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao enviar imagem.");
+      toast.error("Erro ao enviar imagens.");
     } finally {
       setUploading(false);
+      setProgress(0);
     }
   };
 
@@ -101,18 +123,33 @@ export function ImageUploadForm({ defaultCategoryId, defaultSubcategoryId, defau
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Imagem</Label>
-        <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-foreground/30 transition-colors bg-muted/30">
-          {preview ? (
-            <img src={preview} alt="Preview" className="h-full w-full object-contain rounded-lg" />
-          ) : (
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <ImageIcon className="w-8 h-8" />
-              <span className="text-sm">Clique para selecionar</span>
-            </div>
-          )}
-          <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Imagens {files.length > 0 && `(${files.length} selecionada${files.length > 1 ? "s" : ""})`}
+        </Label>
+        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-foreground/30 transition-colors bg-muted/30">
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <ImageIcon className="w-8 h-8" />
+            <span className="text-sm">Clique para selecionar imagens</span>
+          </div>
+          <input type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
         </label>
+
+        {files.length > 0 && (
+          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-2">
+            {files.map((fp, i) => (
+              <div key={i} className="relative group aspect-square rounded-md overflow-hidden border border-border">
+                <img src={fp.preview} alt={fp.file.name} className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {!defaultCategoryId && (
@@ -192,16 +229,16 @@ export function ImageUploadForm({ defaultCategoryId, defaultSubcategoryId, defau
         />
       </div>
 
-      <Button type="submit" disabled={uploading || !file} className="w-full">
+      <Button type="submit" disabled={uploading || files.length === 0} className="w-full">
         {uploading ? (
           <span className="flex items-center gap-2">
             <span className="animate-spin w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full" />
-            Enviando...
+            Enviando {progress}/{files.length}...
           </span>
         ) : (
           <span className="flex items-center gap-2">
             <Upload className="w-4 h-4" />
-            Enviar Imagem
+            Enviar {files.length > 1 ? `${files.length} Imagens` : "Imagem"}
           </span>
         )}
       </Button>
