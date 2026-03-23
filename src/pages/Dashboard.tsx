@@ -22,6 +22,8 @@ import {
   updateGallery,
   fetchSubcategories,
   fetchImagesByGallery,
+  uploadImage,
+  saveImageRecord,
 } from "@/lib/supabase-helpers";
 import {
   Dialog,
