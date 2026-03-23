@@ -310,82 +310,139 @@ export function CategoryView({
         </div>
       </div>
 
-      {/* Color filter buttons */}
-      {colors.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {colors.map((color) => (
-            <span
-              key={color}
-              className="px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-sm font-medium"
+      {/* Search and color filter */}
+      <div className="space-y-3">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Pesquisar galerias..."
+            className="pl-9 pr-9"
+          />
+          {searchText && (
+            <button
+              onClick={() => setSearchText("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
-              {color}
-            </span>
-          ))}
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
-      )}
+
+        {colors.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedColor(null)}
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                selectedColor === null
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              }`}
+            >
+              Todas
+            </button>
+            {colors.map((color) => (
+              <button
+                key={color}
+                onClick={() => setSelectedColor(selectedColor === color ? null : color)}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                  selectedColor === color
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                }`}
+              >
+                {color}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Galleries grid */}
-      {galleries.length === 0 ? (
-        <div className="text-center py-20 text-muted-foreground">
-          <FolderPlus className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="text-lg">Nenhuma galeria criada</p>
-          <p className="text-sm mt-1">Clique em "Nova Galeria" para começar</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {galleries.map((gallery) => {
-            const galleryImages = relevantImages.filter((img) => img.gallery_id === gallery.id);
-            const thumb = galleryImages[0]?.public_url;
-            return (
-              <div
-                key={gallery.id}
-                className="bg-card border border-border rounded-lg overflow-hidden group hover:shadow-md transition-shadow cursor-pointer"
-              >
-                <button
-                  onClick={() => setSelectedGalleryId(gallery.id)}
-                  className="w-full text-left"
+      {(() => {
+        const filtered = galleries.filter((g) => {
+          const matchesColor = !selectedColor || g.color === selectedColor;
+          const matchesSearch = !searchText || g.name.toLowerCase().includes(searchText.toLowerCase()) || (g.color && g.color.toLowerCase().includes(searchText.toLowerCase()));
+          return matchesColor && matchesSearch;
+        });
+
+        if (galleries.length === 0) {
+          return (
+            <div className="text-center py-20 text-muted-foreground">
+              <FolderPlus className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="text-lg">Nenhuma galeria criada</p>
+              <p className="text-sm mt-1">Clique em "Nova Galeria" para começar</p>
+            </div>
+          );
+        }
+
+        if (filtered.length === 0) {
+          return (
+            <div className="text-center py-16 text-muted-foreground">
+              <Search className="w-10 h-10 mx-auto mb-3 opacity-40" />
+              <p>Nenhuma galeria encontrada</p>
+              <p className="text-sm mt-1">Tente outro filtro ou termo de pesquisa</p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map((gallery) => {
+              const galleryImages = relevantImages.filter((img) => img.gallery_id === gallery.id);
+              const thumb = galleryImages[0]?.public_url;
+              return (
+                <div
+                  key={gallery.id}
+                  className="bg-card border border-border rounded-lg overflow-hidden group hover:shadow-md transition-shadow cursor-pointer"
                 >
-                  <div className="aspect-video overflow-hidden bg-muted flex items-center justify-center">
-                    {thumb ? (
-                      <img
-                        src={thumb}
-                        alt={gallery.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <FolderPlus className="w-10 h-10 text-muted-foreground/30" />
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <p className="font-semibold text-sm">{gallery.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {gallery.color && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                          {gallery.color}
-                        </span>
-                      )}
-                      <span className="text-xs text-muted-foreground">{galleryImages.length} imagens</span>
-                    </div>
-                  </div>
-                </button>
-                <div className="px-3 pb-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs w-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteGalleryMutation.mutate(gallery.id);
-                    }}
+                  <button
+                    onClick={() => setSelectedGalleryId(gallery.id)}
+                    className="w-full text-left"
                   >
-                    <Trash2 className="w-3 h-3 mr-1" /> Excluir Galeria
-                  </Button>
+                    <div className="aspect-video overflow-hidden bg-muted flex items-center justify-center">
+                      {thumb ? (
+                        <img
+                          src={thumb}
+                          alt={gallery.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <FolderPlus className="w-10 h-10 text-muted-foreground/30" />
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <p className="font-semibold text-sm">{gallery.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {gallery.color && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                            {gallery.color}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">{galleryImages.length} imagens</span>
+                      </div>
+                    </div>
+                  </button>
+                  <div className="px-3 pb-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteGalleryMutation.mutate(gallery.id);
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" /> Excluir Galeria
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Dialogs */}
       <AddCategoryDialog
