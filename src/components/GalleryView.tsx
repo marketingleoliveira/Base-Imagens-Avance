@@ -11,6 +11,7 @@ import {
   updateImageCategory,
   fetchCategories,
   fetchSubcategories,
+  updateGallery,
 } from "@/lib/supabase-helpers";
 import { ImageUploadForm } from "@/components/ImageUploadForm";
 import {
