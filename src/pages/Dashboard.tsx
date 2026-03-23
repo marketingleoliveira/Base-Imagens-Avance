@@ -266,51 +266,61 @@ function CategoriesManager() {
               {subs.length > 0 && (
                 <div className="border-t border-border bg-muted/30">
                   {subs.map((sub) => (
-                    <div key={sub.id} className="px-6 py-3 flex items-center justify-between border-b border-border last:border-0">
-                      {editingSubId === sub.id ? (
-                        <div className="flex gap-2 flex-1 mr-3">
-                          <Input
-                            value={editingSubName}
-                            onChange={(e) => setEditingSubName(e.target.value)}
-                            className="max-w-xs"
-                            onKeyDown={(e) => e.key === "Enter" && updateSubMutation.mutate()}
-                          />
-                          <Button size="sm" onClick={() => updateSubMutation.mutate()} disabled={updateSubMutation.isPending}>
-                            Salvar
+                    <div key={sub.id} className="px-6 py-3 space-y-2 border-b border-border last:border-0">
+                      <div className="flex items-center justify-between">
+                        {editingSubId === sub.id ? (
+                          <div className="flex gap-2 flex-1 mr-3">
+                            <Input
+                              value={editingSubName}
+                              onChange={(e) => setEditingSubName(e.target.value)}
+                              className="max-w-xs"
+                              onKeyDown={(e) => e.key === "Enter" && updateSubMutation.mutate()}
+                            />
+                            <Button size="sm" onClick={() => updateSubMutation.mutate()} disabled={updateSubMutation.isPending}>
+                              Salvar
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditingSubId(null)}>
+                              Cancelar
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-sm">{sub.name}</span>
+                        )}
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 text-xs"
+                            onClick={() => setGalleryView({ categoryId: cat.id, subcategoryId: sub.id, categoryName: `${cat.name} › ${sub.name}` })}
+                          >
+                            <FolderOpen className="w-3 h-3" /> Galerias
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingSubId(null)}>
-                            Cancelar
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => { setEditingSubId(sub.id); setEditingSubName(sub.name); }}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeleteTarget({ type: "subcategory", id: sub.id, name: sub.name })}
+                          >
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
-                      ) : (
-                        <span className="text-sm">{sub.name}</span>
-                      )}
-                      <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 text-xs"
-                          onClick={() => setGalleryView({ categoryId: cat.id, subcategoryId: sub.id, categoryName: `${cat.name} › ${sub.name}` })}
-                        >
-                          <FolderOpen className="w-3 h-3" /> Galerias
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => { setEditingSubId(sub.id); setEditingSubName(sub.name); }}
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeleteTarget({ type: "subcategory", id: sub.id, name: sub.name })}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
                       </div>
+                      <FolderUpload
+                        categoryId={cat.id}
+                        subcategoryId={sub.id}
+                        compact
+                        onSuccess={() => {
+                          queryClient.invalidateQueries({ queryKey: ["galleries", cat.id, sub.id] });
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
