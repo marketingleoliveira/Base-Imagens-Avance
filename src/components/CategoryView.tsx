@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Plus, ArrowLeft, Trash2, FolderPlus } from "lucide-react";
+import { Plus, ArrowLeft, Trash2, FolderPlus, FolderUp, Loader2 } from "lucide-react";
 import {
   fetchImagesByCategory,
   fetchSubcategories,
@@ -15,6 +15,8 @@ import {
   fetchGalleries,
   createGallery,
   deleteGallery,
+  uploadImage,
+  saveImageRecord,
 } from "@/lib/supabase-helpers";
 import {
   Dialog,
@@ -195,26 +197,21 @@ export function CategoryView({
           {subcategories.map((sub) => {
             const count = images.filter((img) => img.subcategory_id === sub.id).length;
             return (
-              <div key={sub.id} className="flex items-center gap-2">
-                <button
-                  onClick={() => onSelectSubcategory(sub.id)}
-                  className="flex-1 flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-accent transition-colors text-left"
-                >
-                  <span className="font-semibold tracking-wide">{sub.name}</span>
-                  <span className="text-sm text-muted-foreground">{count} peças</span>
-                </button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  onClick={() => {
-                    const subCount = images.filter((img) => img.subcategory_id === sub.id).length;
-                    setDeleteConfirm({ type: "subcategory", id: sub.id, name: sub.name, count: subCount });
-                  }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+              <SubcategoryDropCard
+                key={sub.id}
+                sub={sub}
+                categoryId={categoryId}
+                count={count}
+                onSelect={() => onSelectSubcategory(sub.id)}
+                onDelete={() => {
+                  const subCount = images.filter((img) => img.subcategory_id === sub.id).length;
+                  setDeleteConfirm({ type: "subcategory", id: sub.id, name: sub.name, count: subCount });
+                }}
+                onUploadSuccess={() => {
+                  queryClient.invalidateQueries({ queryKey: ["galleries", categoryId, sub.id] });
+                  queryClient.invalidateQueries({ queryKey: ["images-category", categoryId] });
+                }}
+              />
             );
           })}
         </div>
@@ -454,6 +451,167 @@ export function CategoryView({
 }
 
 // --- Sub-components ---
+
+// =================== Subcategory Drop Card ===================
+
+function SubcategoryDropCard({
+  sub,
+  categoryId,
+  count,
+  onSelect,
+  onDelete,
+  onUploadSuccess,
+}: {
+  sub: any;
+  categoryId: string;
+  count: number;
+  onSelect: () => void;
+  onDelete: () => void;
+  onUploadSuccess: () => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0, folder: "" });
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const { files, paths } = await getFilesFromDataTransfer(e.dataTransfer);
+    const folders = parseFolderGroups(files, paths);
+
+    if (folders.length === 0) {
+      toast.error("Nenhuma imagem encontrada nas pastas.");
+      return;
+    }
+
+    const totalImages = folders.reduce((sum, f) => sum + f.files.length, 0);
+    setUploading(true);
+    setProgress({ current: 0, total: totalImages, folder: "" });
+    let uploaded = 0;
+
+    try {
+      for (const folder of folders) {
+        setProgress((p) => ({ ...p, folder: folder.folderName }));
+        const gallery = await createGallery({
+          name: folder.folderName,
+          category_id: categoryId,
+          subcategory_id: sub.id,
+          color: folder.folderName,
+        });
+        for (const file of folder.files) {
+          const { filePath, publicUrl, fileName } = await uploadImage(file);
+          await saveImageRecord({
+            file_name: fileName,
+            file_path: filePath,
+            public_url: publicUrl,
+            category_id: categoryId,
+            subcategory_id: sub.id,
+            gallery_id: gallery.id,
+          });
+          uploaded++;
+          setProgress((p) => ({ ...p, current: uploaded }));
+        }
+      }
+      toast.success(`${folders.length} galeria(s) criada(s) com ${totalImages} imagem(ns)!`);
+      onUploadSuccess();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao processar pastas.");
+    } finally {
+      setUploading(false);
+      setProgress({ current: 0, total: 0, folder: "" });
+    }
+  }, [categoryId, sub.id, onUploadSuccess]);
+
+  return (
+    <div
+      onDrop={handleDrop}
+      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+      onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
+      className="flex flex-col gap-2"
+    >
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onSelect}
+          className={`
+            flex-1 flex items-center justify-between p-4 rounded-lg border-2 bg-card transition-colors text-left
+            ${isDragging
+              ? "border-primary bg-primary/5"
+              : "border-border hover:bg-accent"
+            }
+          `}
+        >
+          <span className="font-semibold tracking-wide">{sub.name}</span>
+          <div className="flex items-center gap-2">
+            {isDragging && (
+              <span className="text-xs text-primary flex items-center gap-1">
+                <FolderUp className="w-3 h-3" /> Solte aqui
+              </span>
+            )}
+            <span className="text-sm text-muted-foreground">{count} peças</span>
+          </div>
+        </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+          onClick={onDelete}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {uploading && (
+        <div className="flex items-center gap-3 bg-muted/50 border border-border rounded-lg px-4 py-2">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <div className="text-sm">
+            <p className="font-medium">Enviando: {progress.folder}</p>
+            <p className="text-muted-foreground text-xs">{progress.current}/{progress.total} imagens</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper functions for drag-and-drop folder parsing
+function parseFolderGroups(files: File[], relativePaths?: string[]) {
+  const groups: Record<string, File[]> = {};
+  files.forEach((file, i) => {
+    if (!file.type.startsWith("image/")) return;
+    const path = relativePaths?.[i] || file.webkitRelativePath || file.name;
+    const parts = path.split("/");
+    const folderName = parts.length > 1 ? parts[parts.length - 2] : parts[0];
+    if (!groups[folderName]) groups[folderName] = [];
+    groups[folderName].push(file);
+  });
+  return Object.entries(groups).map(([folderName, files]) => ({ folderName, files }));
+}
+
+async function getFilesFromDataTransfer(dataTransfer: DataTransfer) {
+  const files: File[] = [];
+  const paths: string[] = [];
+  const entries = Array.from(dataTransfer.items)
+    .map((item) => item.webkitGetAsEntry?.())
+    .filter(Boolean) as FileSystemEntry[];
+
+  async function readEntry(entry: FileSystemEntry, path: string) {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve) => (entry as FileSystemFileEntry).file(resolve));
+      files.push(file);
+      paths.push(path + entry.name);
+    } else if (entry.isDirectory) {
+      const dirReader = (entry as FileSystemDirectoryEntry).createReader();
+      const subEntries = await new Promise<FileSystemEntry[]>((resolve) => dirReader.readEntries(resolve));
+      for (const sub of subEntries) await readEntry(sub, path + entry.name + "/");
+    }
+  }
+
+  for (const entry of entries) await readEntry(entry, "");
+  return { files, paths };
+}
 
 function AddCategoryDialog({ show, onClose, name, setName, onSubmit, isPending }: any) {
   return (
