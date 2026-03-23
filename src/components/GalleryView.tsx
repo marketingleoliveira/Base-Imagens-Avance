@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Copy, ExternalLink, Trash2, ArrowRightLeft } from "lucide-react";
+import { ArrowLeft, Plus, Copy, ExternalLink, Trash2, ArrowRightLeft, Pencil, Check, X } from "lucide-react";
 import {
   fetchImagesByGallery,
   uploadImage,
@@ -11,6 +12,7 @@ import {
   updateImageCategory,
   fetchCategories,
   fetchSubcategories,
+  updateGallery,
 } from "@/lib/supabase-helpers";
 import { ImageUploadForm } from "@/components/ImageUploadForm";
 import {
@@ -46,6 +48,8 @@ export function GalleryView({
 }: GalleryViewProps) {
   const queryClient = useQueryClient();
   const [showUpload, setShowUpload] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(galleryName);
   const [transferImageId, setTransferImageId] = useState<string | null>(null);
   const [transferCategoryId, setTransferCategoryId] = useState("");
   const [transferSubcategoryId, setTransferSubcategoryId] = useState("");
@@ -64,6 +68,17 @@ export function GalleryView({
     queryKey: ["subcategories", transferCategoryId],
     queryFn: () => fetchSubcategories(transferCategoryId),
     enabled: !!transferCategoryId,
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: () => updateGallery(galleryId, { name: nameValue }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gallery-images", galleryId] });
+      queryClient.invalidateQueries({ queryKey: ["galleries"] });
+      toast.success("Nome da galeria atualizado!");
+      setEditingName(false);
+    },
+    onError: () => toast.error("Erro ao renomear galeria"),
   });
 
   const deleteMutation = useMutation({
@@ -102,7 +117,33 @@ export function GalleryView({
           </Button>
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-widest">{categoryName}</p>
-            <h2 className="text-2xl font-bold tracking-tight">{galleryName}</h2>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  className="h-8 text-lg font-bold"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && nameValue.trim()) renameMutation.mutate();
+                    if (e.key === "Escape") { setEditingName(false); setNameValue(galleryName); }
+                  }}
+                  autoFocus
+                />
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => renameMutation.mutate()} disabled={!nameValue.trim() || renameMutation.isPending}>
+                  <Check className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingName(false); setNameValue(galleryName); }}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold tracking-tight">{nameValue}</h2>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingName(true)}>
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
         <Button onClick={() => setShowUpload(true)} className="gap-2">
