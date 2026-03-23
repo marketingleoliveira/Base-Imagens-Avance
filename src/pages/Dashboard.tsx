@@ -468,9 +468,16 @@ function CategoryGalleriesView({
             <h3 className="text-xl font-bold">{categoryName}</h3>
           </div>
         </div>
-        <Button onClick={() => setShowCreateGallery(true)} className="gap-2">
-          <FolderPlus className="w-4 h-4" /> Nova Galeria
-        </Button>
+        <div className="flex gap-2">
+          <FolderUpload
+            categoryId={categoryId}
+            subcategoryId={subcategoryId}
+            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["galleries", categoryId, subcategoryId] })}
+          />
+          <Button onClick={() => setShowCreateGallery(true)} className="gap-2">
+            <FolderPlus className="w-4 h-4" /> Nova Galeria
+          </Button>
+        </div>
       </div>
 
       {galleries.length === 0 ? (
