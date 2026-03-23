@@ -34,6 +34,13 @@ const Index = () => {
           <header className="h-14 flex items-center border-b border-border px-4 gap-4">
             <SidebarTrigger />
             <h1 className="text-lg font-bold tracking-tight">Gerenciador de Peças</h1>
+            <div className="ml-auto">
+              <Link to="/dashboard">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <LayoutDashboard className="w-4 h-4" /> Dashboard
+                </Button>
+              </Link>
+            </div>
           </header>
 
           <main className="flex-1">
