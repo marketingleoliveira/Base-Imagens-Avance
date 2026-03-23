@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Copy, ExternalLink, Trash2, ArrowRightLeft } from "lucide-react";
+import { ArrowLeft, Plus, Copy, ExternalLink, Trash2, ArrowRightLeft, Pencil, Check, X } from "lucide-react";
 import {
   fetchImagesByGallery,
   uploadImage,
