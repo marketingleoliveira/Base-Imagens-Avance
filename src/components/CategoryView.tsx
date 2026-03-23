@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Plus, ArrowLeft, Trash2, FolderPlus, FolderUp, Loader2 } from "lucide-react";
+import { Plus, ArrowLeft, Trash2, FolderPlus, FolderUp, Loader2, Search, X } from "lucide-react";
 import {
   fetchImagesByCategory,
   fetchSubcategories,
