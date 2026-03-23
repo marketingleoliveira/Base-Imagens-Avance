@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CategorySidebar } from "@/components/CategorySidebar";
 import { CategoryView } from "@/components/CategoryView";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCategories } from "@/lib/supabase-helpers";
+import { Button } from "@/components/ui/button";
+import { LayoutDashboard } from "lucide-react";
 
 const Index = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
