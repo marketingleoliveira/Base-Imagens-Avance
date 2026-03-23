@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CategorySidebar } from "@/components/CategorySidebar";
 import { CategoryView } from "@/components/CategoryView";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCategories } from "@/lib/supabase-helpers";
+import { Button } from "@/components/ui/button";
+import { LayoutDashboard } from "lucide-react";
 
 const Index = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -31,6 +34,13 @@ const Index = () => {
           <header className="h-14 flex items-center border-b border-border px-4 gap-4">
             <SidebarTrigger />
             <h1 className="text-lg font-bold tracking-tight">Gerenciador de Peças</h1>
+            <div className="ml-auto">
+              <Link to="/dashboard">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <LayoutDashboard className="w-4 h-4" /> Dashboard
+                </Button>
+              </Link>
+            </div>
           </header>
 
           <main className="flex-1">

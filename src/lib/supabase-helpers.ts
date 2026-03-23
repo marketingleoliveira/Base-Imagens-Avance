@@ -183,11 +183,44 @@ export async function fetchImagesByGallery(galleryId: string) {
   return data;
 }
 
+export async function updateGallery(id: string, updates: { name?: string; color?: string | null }) {
+  const { error } = await supabase.from("galleries").update(updates).eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateCategory(id: string, name: string) {
+  const { error } = await supabase.from("categories").update({ name }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateSubcategory(id: string, name: string) {
+  const { error } = await supabase.from("subcategories").update({ name }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function fetchAllGalleries() {
+  const { data, error } = await supabase
+    .from("galleries")
+    .select("*, categories(name), subcategories(name)")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
 export async function countImagesByCategory(categoryId: string) {
   const { count, error } = await supabase
     .from("images")
     .select("*", { count: "exact", head: true })
     .eq("category_id", categoryId);
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function countImagesByGallery(galleryId: string) {
+  const { count, error } = await supabase
+    .from("images")
+    .select("*", { count: "exact", head: true })
+    .eq("gallery_id", galleryId);
   if (error) throw error;
   return count || 0;
 }
