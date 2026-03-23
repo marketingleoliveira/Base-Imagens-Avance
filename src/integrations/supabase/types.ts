@@ -32,6 +32,51 @@ export type Database = {
         }
         Relationships: []
       }
+      galleries: {
+        Row: {
+          category_id: string
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          subcategory_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          subcategory_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          subcategory_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "galleries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "galleries_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       images: {
         Row: {
           category_id: string
@@ -40,6 +85,7 @@ export type Database = {
           created_at: string
           file_name: string
           file_path: string
+          gallery_id: string | null
           id: string
           measurements: string | null
           public_url: string
@@ -54,6 +100,7 @@ export type Database = {
           created_at?: string
           file_name: string
           file_path: string
+          gallery_id?: string | null
           id?: string
           measurements?: string | null
           public_url: string
@@ -68,6 +115,7 @@ export type Database = {
           created_at?: string
           file_name?: string
           file_path?: string
+          gallery_id?: string | null
           id?: string
           measurements?: string | null
           public_url?: string
@@ -81,6 +129,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "images_gallery_id_fkey"
+            columns: ["gallery_id"]
+            isOneToOne: false
+            referencedRelation: "galleries"
             referencedColumns: ["id"]
           },
           {
