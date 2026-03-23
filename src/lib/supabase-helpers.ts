@@ -224,10 +224,3 @@ export async function countImagesByGallery(galleryId: string) {
   if (error) throw error;
   return count || 0;
 }
-  const { count, error } = await supabase
-    .from("images")
-    .select("*", { count: "exact", head: true })
-    .eq("category_id", categoryId);
-  if (error) throw error;
-  return count || 0;
-}
