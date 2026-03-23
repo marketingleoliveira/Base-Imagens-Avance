@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ImageUploadForm } from "@/components/ImageUploadForm";
 import { GalleryView } from "@/components/GalleryView";
+import { FolderUpload } from "@/components/FolderUpload";
 import { Link } from "react-router-dom";
 import logoAvance from "@/assets/logo_avance.png";
 
