@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Pencil, FolderPlus, ArrowLeft, LayoutDashboard,
-  Image as ImageIcon, Layers, FolderOpen, Upload,
+  Image as ImageIcon, Layers, FolderOpen, Upload, FolderUp, Loader2,
 } from "lucide-react";
 import {
   fetchCategories,
@@ -22,6 +22,8 @@ import {
   updateGallery,
   fetchSubcategories,
   fetchImagesByGallery,
+  uploadImage,
+  saveImageRecord,
 } from "@/lib/supabase-helpers";
 import {
   Dialog,
@@ -266,62 +268,22 @@ function CategoriesManager() {
               {subs.length > 0 && (
                 <div className="border-t border-border bg-muted/30">
                   {subs.map((sub) => (
-                    <div key={sub.id} className="px-6 py-3 space-y-2 border-b border-border last:border-0">
-                      <div className="flex items-center justify-between">
-                        {editingSubId === sub.id ? (
-                          <div className="flex gap-2 flex-1 mr-3">
-                            <Input
-                              value={editingSubName}
-                              onChange={(e) => setEditingSubName(e.target.value)}
-                              className="max-w-xs"
-                              onKeyDown={(e) => e.key === "Enter" && updateSubMutation.mutate()}
-                            />
-                            <Button size="sm" onClick={() => updateSubMutation.mutate()} disabled={updateSubMutation.isPending}>
-                              Salvar
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setEditingSubId(null)}>
-                              Cancelar
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-sm">{sub.name}</span>
-                        )}
-                        <div className="flex gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 text-xs"
-                            onClick={() => setGalleryView({ categoryId: cat.id, subcategoryId: sub.id, categoryName: `${cat.name} › ${sub.name}` })}
-                          >
-                            <FolderOpen className="w-3 h-3" /> Galerias
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => { setEditingSubId(sub.id); setEditingSubName(sub.name); }}
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => setDeleteTarget({ type: "subcategory", id: sub.id, name: sub.name })}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                      <FolderUpload
-                        categoryId={cat.id}
-                        subcategoryId={sub.id}
-                        compact
-                        onSuccess={() => {
-                          queryClient.invalidateQueries({ queryKey: ["galleries", cat.id, sub.id] });
-                        }}
-                      />
-                    </div>
+                    <SubcategoryDropRow
+                      key={sub.id}
+                      sub={sub}
+                      cat={cat}
+                      editingSubId={editingSubId}
+                      editingSubName={editingSubName}
+                      setEditingSubName={setEditingSubName}
+                      updateSubMutation={updateSubMutation}
+                      setEditingSubId={setEditingSubId}
+                      setEditingSubName_init={(name: string) => { setEditingSubId(sub.id); setEditingSubName(name); }}
+                      setDeleteTarget={setDeleteTarget}
+                      setGalleryView={setGalleryView}
+                      onUploadSuccess={() => {
+                        queryClient.invalidateQueries({ queryKey: ["galleries", cat.id, sub.id] });
+                      }}
+                    />
                   ))}
                 </div>
               )}
@@ -385,7 +347,204 @@ function CategoriesManager() {
   );
 }
 
-// =================== Category Galleries View ===================
+// =================== Subcategory Drop Row ===================
+
+function SubcategoryDropRow({
+  sub,
+  cat,
+  editingSubId,
+  editingSubName,
+  setEditingSubName,
+  updateSubMutation,
+  setEditingSubId,
+  setEditingSubName_init,
+  setDeleteTarget,
+  setGalleryView,
+  onUploadSuccess,
+}: {
+  sub: any;
+  cat: any;
+  editingSubId: string | null;
+  editingSubName: string;
+  setEditingSubName: (v: string) => void;
+  updateSubMutation: any;
+  setEditingSubId: (v: string | null) => void;
+  setEditingSubName_init: (name: string) => void;
+  setDeleteTarget: (v: any) => void;
+  setGalleryView: (v: any) => void;
+  onUploadSuccess: () => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0, folder: "" });
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const { files, paths } = await getFilesFromDT(e.dataTransfer);
+    const folders = parseFolders(files, paths);
+
+    if (folders.length === 0) {
+      toast.error("Nenhuma imagem encontrada nas pastas.");
+      return;
+    }
+
+    const totalImages = folders.reduce((sum, f) => sum + f.files.length, 0);
+    setUploading(true);
+    setProgress({ current: 0, total: totalImages, folder: "" });
+    let uploaded = 0;
+
+    try {
+      for (const folder of folders) {
+        setProgress((p) => ({ ...p, folder: folder.folderName }));
+        const gallery = await createGallery({
+          name: folder.folderName,
+          category_id: cat.id,
+          subcategory_id: sub.id,
+          color: folder.folderName,
+        });
+        for (const file of folder.files) {
+          const { filePath, publicUrl, fileName } = await uploadImage(file);
+          await saveImageRecord({
+            file_name: fileName,
+            file_path: filePath,
+            public_url: publicUrl,
+            category_id: cat.id,
+            subcategory_id: sub.id,
+            gallery_id: gallery.id,
+          });
+          uploaded++;
+          setProgress((p) => ({ ...p, current: uploaded }));
+        }
+      }
+      toast.success(`${folders.length} galeria(s) criada(s) com ${totalImages} imagem(ns)!`);
+      onUploadSuccess();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao processar pastas.");
+    } finally {
+      setUploading(false);
+      setProgress({ current: 0, total: 0, folder: "" });
+    }
+  }, [cat.id, sub.id, onUploadSuccess]);
+
+  return (
+    <div
+      onDrop={handleDrop}
+      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+      onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
+      className={`
+        px-6 py-3 border-b border-border last:border-0 transition-colors
+        ${isDragging ? "bg-primary/10 border-primary" : ""}
+      `}
+    >
+      <div className="flex items-center justify-between">
+        {editingSubId === sub.id ? (
+          <div className="flex gap-2 flex-1 mr-3">
+            <Input
+              value={editingSubName}
+              onChange={(e) => setEditingSubName(e.target.value)}
+              className="max-w-xs"
+              onKeyDown={(e) => e.key === "Enter" && updateSubMutation.mutate()}
+            />
+            <Button size="sm" onClick={() => updateSubMutation.mutate()} disabled={updateSubMutation.isPending}>
+              Salvar
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditingSubId(null)}>
+              Cancelar
+            </Button>
+          </div>
+        ) : (
+          <span className="text-sm">{sub.name}</span>
+        )}
+        <div className="flex gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 text-xs"
+            onClick={() => setGalleryView({ categoryId: cat.id, subcategoryId: sub.id, categoryName: `${cat.name} › ${sub.name}` })}
+          >
+            <FolderOpen className="w-3 h-3" /> Galerias
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setEditingSubName_init(sub.name)}
+          >
+            <Pencil className="w-3 h-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => setDeleteTarget({ type: "subcategory", id: sub.id, name: sub.name })}
+          >
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
+
+      {uploading ? (
+        <div className="flex items-center gap-3 mt-2 bg-muted/50 border border-border rounded-lg px-4 py-2">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <div className="text-sm">
+            <p className="font-medium">Enviando: {progress.folder}</p>
+            <p className="text-muted-foreground text-xs">{progress.current}/{progress.total} imagens</p>
+          </div>
+        </div>
+      ) : (
+        isDragging && (
+          <div className="mt-2 flex items-center gap-2 text-primary text-sm">
+            <FolderUp className="w-4 h-4" />
+            <span>Solte a pasta aqui para criar galeria</span>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+// Helper functions for drag-and-drop folder parsing
+function parseFolders(files: File[], relativePaths?: string[]) {
+  const groups: Record<string, File[]> = {};
+  files.forEach((file, i) => {
+    if (!file.type.startsWith("image/")) return;
+    const path = relativePaths?.[i] || file.webkitRelativePath || file.name;
+    const parts = path.split("/");
+    const folderName = parts.length > 1 ? parts[parts.length - 2] : parts[0];
+    if (!groups[folderName]) groups[folderName] = [];
+    groups[folderName].push(file);
+  });
+  return Object.entries(groups).map(([folderName, files]) => ({ folderName, files }));
+}
+
+async function getFilesFromDT(dataTransfer: DataTransfer) {
+  const files: File[] = [];
+  const paths: string[] = [];
+  const entries = Array.from(dataTransfer.items)
+    .map((item) => item.webkitGetAsEntry?.())
+    .filter(Boolean) as FileSystemEntry[];
+
+  async function readEntry(entry: FileSystemEntry, path: string) {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve) => (entry as FileSystemFileEntry).file(resolve));
+      files.push(file);
+      paths.push(path + entry.name);
+    } else if (entry.isDirectory) {
+      const dirReader = (entry as FileSystemDirectoryEntry).createReader();
+      const subEntries = await new Promise<FileSystemEntry[]>((resolve) => dirReader.readEntries(resolve));
+      for (const sub of subEntries) await readEntry(sub, path + entry.name + "/");
+    }
+  }
+
+  for (const entry of entries) await readEntry(entry, "");
+  return { files, paths };
+}
+
+
 
 function CategoryGalleriesView({
   categoryId,
