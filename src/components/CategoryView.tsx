@@ -15,6 +15,8 @@ import {
   fetchGalleries,
   createGallery,
   deleteGallery,
+  uploadImage,
+  saveImageRecord,
 } from "@/lib/supabase-helpers";
 import {
   Dialog,
