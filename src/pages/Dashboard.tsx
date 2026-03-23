@@ -273,7 +273,7 @@ function CategoriesManager() {
                 </div>
               </div>
 
-              {isExpanded && subs.length > 0 && (
+              {subs.length > 0 && (
                 <div className="border-t border-border bg-muted/30">
                   {subs.map((sub) => (
                     <div key={sub.id} className="px-6 py-3 flex items-center justify-between border-b border-border last:border-0">
