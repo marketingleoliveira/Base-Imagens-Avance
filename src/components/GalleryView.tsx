@@ -47,6 +47,8 @@ export function GalleryView({
 }: GalleryViewProps) {
   const queryClient = useQueryClient();
   const [showUpload, setShowUpload] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(galleryName);
   const [transferImageId, setTransferImageId] = useState<string | null>(null);
   const [transferCategoryId, setTransferCategoryId] = useState("");
   const [transferSubcategoryId, setTransferSubcategoryId] = useState("");
