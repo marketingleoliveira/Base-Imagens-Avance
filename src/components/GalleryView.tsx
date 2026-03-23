@@ -69,6 +69,17 @@ export function GalleryView({
     enabled: !!transferCategoryId,
   });
 
+  const renameMutation = useMutation({
+    mutationFn: () => updateGallery(galleryId, { name: nameValue }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gallery-images", galleryId] });
+      queryClient.invalidateQueries({ queryKey: ["galleries"] });
+      toast.success("Nome da galeria atualizado!");
+      setEditingName(false);
+    },
+    onError: () => toast.error("Erro ao renomear galeria"),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: ({ id, filePath }: { id: string; filePath: string }) => deleteImage(id, filePath),
     onSuccess: () => {
