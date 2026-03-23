@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Pencil, FolderPlus, ArrowLeft, LayoutDashboard,
-  Image as ImageIcon, Layers, FolderOpen,
+  Image as ImageIcon, Layers, FolderOpen, Upload,
 } from "lucide-react";
 import {
   fetchCategories,
   fetchAllSubcategories,
-  fetchAllGalleries,
+  fetchGalleries,
   addCategory,
   addSubcategory,
   deleteCategory,
@@ -22,8 +22,6 @@ import {
   updateGallery,
   fetchSubcategories,
   fetchImagesByGallery,
-  uploadImage,
-  saveImageRecord,
 } from "@/lib/supabase-helpers";
 import {
   Dialog,
@@ -41,27 +39,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImageUploadForm } from "@/components/ImageUploadForm";
+import { GalleryView } from "@/components/GalleryView";
 import { Link } from "react-router-dom";
+import logoAvance from "@/assets/logo_avance.png";
 
 const Dashboard = () => {
   const queryClient = useQueryClient();
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="h-14 flex items-center border-b border-border px-6 gap-4 justify-between">
+      <header className="h-16 flex items-center border-b border-border px-6 gap-4 justify-between">
         <div className="flex items-center gap-3">
           <LayoutDashboard className="w-5 h-5" />
           <h1 className="text-lg font-bold tracking-tight">Dashboard</h1>
         </div>
+        <img src={logoAvance} alt="Avance" className="h-10 object-contain" />
         <Link to="/">
           <Button variant="outline" size="sm" className="gap-2">
             <ArrowLeft className="w-3 h-3" /> Voltar ao Catálogo
@@ -70,31 +63,7 @@ const Dashboard = () => {
       </header>
 
       <main className="max-w-6xl mx-auto p-6">
-        <Tabs defaultValue="categories" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="categories" className="gap-2">
-              <Layers className="w-4 h-4" /> Categorias
-            </TabsTrigger>
-            <TabsTrigger value="galleries" className="gap-2">
-              <FolderOpen className="w-4 h-4" /> Galerias
-            </TabsTrigger>
-            <TabsTrigger value="upload" className="gap-2">
-              <ImageIcon className="w-4 h-4" /> Upload
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="categories">
-            <CategoriesManager />
-          </TabsContent>
-
-          <TabsContent value="galleries">
-            <GalleriesManager />
-          </TabsContent>
-
-          <TabsContent value="upload">
-            <UploadManager />
-          </TabsContent>
-        </Tabs>
+        <CategoriesManager />
       </main>
     </div>
   );
@@ -113,6 +82,7 @@ function CategoriesManager() {
   const [editingSubName, setEditingSubName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ type: "category" | "subcategory"; id: string; name: string } | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [galleryView, setGalleryView] = useState<{ categoryId: string; subcategoryId: string | null; categoryName: string } | null>(null);
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -189,6 +159,18 @@ function CategoriesManager() {
     onError: () => toast.error("Erro ao excluir"),
   });
 
+  // If gallery view is open, show it
+  if (galleryView) {
+    return (
+      <CategoryGalleriesView
+        categoryId={galleryView.categoryId}
+        subcategoryId={galleryView.subcategoryId}
+        categoryName={galleryView.categoryName}
+        onBack={() => setGalleryView(null)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-card border border-border rounded-lg p-5 space-y-4">
@@ -214,7 +196,6 @@ function CategoriesManager() {
       <div className="space-y-3">
         {categories.map((cat) => {
           const subs = allSubs.filter((s) => s.category_id === cat.id);
-          const isExpanded = expandedCategory === cat.id;
 
           return (
             <div key={cat.id} className="bg-card border border-border rounded-lg overflow-hidden">
@@ -236,7 +217,7 @@ function CategoriesManager() {
                   </div>
                 ) : (
                   <button
-                    onClick={() => setExpandedCategory(isExpanded ? null : cat.id)}
+                    onClick={() => setExpandedCategory(expandedCategory === cat.id ? null : cat.id)}
                     className="flex items-center gap-2 text-left"
                   >
                     <Layers className="w-4 h-4 text-muted-foreground" />
@@ -246,6 +227,14 @@ function CategoriesManager() {
                 )}
 
                 <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs"
+                    onClick={() => setGalleryView({ categoryId: cat.id, subcategoryId: null, categoryName: cat.name })}
+                  >
+                    <FolderOpen className="w-3 h-3" /> Galerias
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -296,6 +285,14 @@ function CategoriesManager() {
                         <span className="text-sm">{sub.name}</span>
                       )}
                       <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1 text-xs"
+                          onClick={() => setGalleryView({ categoryId: cat.id, subcategoryId: sub.id, categoryName: `${cat.name} › ${sub.name}` })}
+                        >
+                          <FolderOpen className="w-3 h-3" /> Galerias
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -377,53 +374,48 @@ function CategoriesManager() {
   );
 }
 
-// =================== Galleries Manager ===================
+// =================== Category Galleries View ===================
 
-function GalleriesManager() {
+function CategoryGalleriesView({
+  categoryId,
+  subcategoryId,
+  categoryName,
+  onBack,
+}: {
+  categoryId: string;
+  subcategoryId: string | null;
+  categoryName: string;
+  onBack: () => void;
+}) {
   const queryClient = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState("");
-  const [newCategoryId, setNewCategoryId] = useState("");
-  const [newSubcategoryId, setNewSubcategoryId] = useState("");
+  const [showCreateGallery, setShowCreateGallery] = useState(false);
+  const [newGalleryName, setNewGalleryName] = useState("");
+  const [newGalleryColor, setNewGalleryColor] = useState("");
   const [editingGallery, setEditingGallery] = useState<any | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
   const [deleteGalleryId, setDeleteGalleryId] = useState<string | null>(null);
+  const [selectedGalleryId, setSelectedGalleryId] = useState<string | null>(null);
 
   const { data: galleries = [] } = useQuery({
-    queryKey: ["all-galleries"],
-    queryFn: fetchAllGalleries,
-  });
-
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: fetchCategories,
-  });
-
-  const { data: subsForNew = [] } = useQuery({
-    queryKey: ["subcategories", newCategoryId],
-    queryFn: () => fetchSubcategories(newCategoryId),
-    enabled: !!newCategoryId,
+    queryKey: ["galleries", categoryId, subcategoryId],
+    queryFn: () => fetchGalleries(categoryId, subcategoryId),
   });
 
   const createMutation = useMutation({
     mutationFn: () =>
       createGallery({
-        name: newName,
-        category_id: newCategoryId,
-        subcategory_id: newSubcategoryId || null,
-        color: newColor || null,
+        name: newGalleryName,
+        category_id: categoryId,
+        subcategory_id: subcategoryId || null,
+        color: newGalleryColor || null,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["all-galleries"] });
-      queryClient.invalidateQueries({ queryKey: ["galleries"] });
+      queryClient.invalidateQueries({ queryKey: ["galleries", categoryId, subcategoryId] });
       toast.success("Galeria criada!");
-      setShowCreate(false);
-      setNewName("");
-      setNewColor("");
-      setNewCategoryId("");
-      setNewSubcategoryId("");
+      setShowCreateGallery(false);
+      setNewGalleryName("");
+      setNewGalleryColor("");
     },
     onError: () => toast.error("Erro ao criar galeria"),
   });
@@ -431,8 +423,7 @@ function GalleriesManager() {
   const updateMutation = useMutation({
     mutationFn: () => updateGallery(editingGallery!.id, { name: editName, color: editColor || null }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["all-galleries"] });
-      queryClient.invalidateQueries({ queryKey: ["galleries"] });
+      queryClient.invalidateQueries({ queryKey: ["galleries", categoryId, subcategoryId] });
       toast.success("Galeria atualizada!");
       setEditingGallery(null);
     },
@@ -442,19 +433,41 @@ function GalleriesManager() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteGallery(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["all-galleries"] });
-      queryClient.invalidateQueries({ queryKey: ["galleries"] });
+      queryClient.invalidateQueries({ queryKey: ["galleries", categoryId, subcategoryId] });
       toast.success("Galeria excluída!");
       setDeleteGalleryId(null);
     },
     onError: () => toast.error("Erro ao excluir galeria"),
   });
 
+  // If a gallery is selected, show its images with upload
+  if (selectedGalleryId) {
+    const gallery = galleries.find((g) => g.id === selectedGalleryId);
+    return (
+      <GalleryView
+        galleryId={selectedGalleryId}
+        galleryName={gallery?.name || ""}
+        categoryId={categoryId}
+        categoryName={categoryName}
+        subcategoryId={subcategoryId}
+        onBack={() => setSelectedGalleryId(null)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-lg">Galerias</h3>
-        <Button onClick={() => setShowCreate(true)} className="gap-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-widest">Galerias</p>
+            <h3 className="text-xl font-bold">{categoryName}</h3>
+          </div>
+        </div>
+        <Button onClick={() => setShowCreateGallery(true)} className="gap-2">
           <FolderPlus className="w-4 h-4" /> Nova Galeria
         </Button>
       </div>
@@ -462,35 +475,30 @@ function GalleriesManager() {
       {galleries.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <FolderOpen className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p>Nenhuma galeria cadastrada</p>
+          <p>Nenhuma galeria nesta categoria</p>
+          <p className="text-sm mt-1">Crie uma galeria para fazer upload de imagens</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {galleries.map((gallery: any) => (
-            <div key={gallery.id} className="bg-card border border-border rounded-lg p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-semibold">{gallery.name}</p>
-                  <div className="flex gap-1 mt-1 flex-wrap">
-                    {gallery.categories?.name && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                        {gallery.categories.name}
-                      </span>
-                    )}
-                    {gallery.subcategories?.name && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                        {gallery.subcategories.name}
-                      </span>
-                    )}
-                    {gallery.color && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary text-primary-foreground">
-                        {gallery.color}
-                      </span>
-                    )}
-                  </div>
+            <div key={gallery.id} className="bg-card border border-border rounded-lg overflow-hidden group hover:shadow-md transition-shadow">
+              <button
+                onClick={() => setSelectedGalleryId(gallery.id)}
+                className="w-full text-left"
+              >
+                <div className="aspect-video overflow-hidden bg-muted flex items-center justify-center">
+                  <FolderOpen className="w-10 h-10 text-muted-foreground/30" />
                 </div>
-              </div>
-              <div className="flex gap-1">
+                <div className="p-3">
+                  <p className="font-semibold text-sm">{gallery.name}</p>
+                  {gallery.color && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground mt-1 inline-block">
+                      {gallery.color}
+                    </span>
+                  )}
+                </div>
+              </button>
+              <div className="px-3 pb-3 flex gap-1">
                 <Button
                   variant="outline"
                   size="sm"
@@ -518,35 +526,17 @@ function GalleriesManager() {
       )}
 
       {/* Create Gallery Dialog */}
-      <Dialog open={showCreate} onOpenChange={(open) => !open && setShowCreate(false)}>
+      <Dialog open={showCreateGallery} onOpenChange={(open) => !open && setShowCreateGallery(false)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nova Galeria</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome da galeria" />
-            <Input value={newColor} onChange={(e) => setNewColor(e.target.value)} placeholder="Cor (opcional)" />
-            <Select value={newCategoryId} onValueChange={(v) => { setNewCategoryId(v); setNewSubcategoryId(""); }}>
-              <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {subsForNew.length > 0 && (
-              <Select value={newSubcategoryId} onValueChange={setNewSubcategoryId}>
-                <SelectTrigger><SelectValue placeholder="Subcategoria (opcional)" /></SelectTrigger>
-                <SelectContent>
-                  {subsForNew.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            <Input value={newGalleryName} onChange={(e) => setNewGalleryName(e.target.value)} placeholder="Nome da galeria" />
+            <Input value={newGalleryColor} onChange={(e) => setNewGalleryColor(e.target.value)} placeholder="Cor (opcional)" />
             <Button
               className="w-full"
-              disabled={!newName.trim() || !newCategoryId || createMutation.isPending}
+              disabled={!newGalleryName.trim() || createMutation.isPending}
               onClick={() => createMutation.mutate()}
             >
               Criar Galeria
@@ -562,14 +552,8 @@ function GalleriesManager() {
             <DialogTitle>Editar Galeria</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nome</label>
-              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Cor</label>
-              <Input value={editColor} onChange={(e) => setEditColor(e.target.value)} placeholder="Cor (opcional)" />
-            </div>
+            <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" />
+            <Input value={editColor} onChange={(e) => setEditColor(e.target.value)} placeholder="Cor (opcional)" />
             <Button
               className="w-full"
               disabled={!editName.trim() || updateMutation.isPending}
@@ -601,27 +585,6 @@ function GalleriesManager() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
-
-// =================== Upload Manager ===================
-
-function UploadManager() {
-  const queryClient = useQueryClient();
-
-  return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-card border border-border rounded-lg p-6">
-        <h3 className="font-semibold text-lg mb-4">Cadastrar Nova Peça</h3>
-        <ImageUploadForm
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["images"] });
-            queryClient.invalidateQueries({ queryKey: ["images-category"] });
-            queryClient.invalidateQueries({ queryKey: ["all-galleries"] });
-          }}
-        />
-      </div>
     </div>
   );
 }
