@@ -116,7 +116,33 @@ export function GalleryView({
           </Button>
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-widest">{categoryName}</p>
-            <h2 className="text-2xl font-bold tracking-tight">{galleryName}</h2>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  className="h-8 text-lg font-bold"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && nameValue.trim()) renameMutation.mutate();
+                    if (e.key === "Escape") { setEditingName(false); setNameValue(galleryName); }
+                  }}
+                  autoFocus
+                />
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => renameMutation.mutate()} disabled={!nameValue.trim() || renameMutation.isPending}>
+                  <Check className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingName(false); setNameValue(galleryName); }}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold tracking-tight">{nameValue}</h2>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingName(true)}>
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
         <Button onClick={() => setShowUpload(true)} className="gap-2">
