@@ -61,6 +61,8 @@ export function CategoryView({
   const [showCreateGallery, setShowCreateGallery] = useState(false);
   const [newGalleryName, setNewGalleryName] = useState("");
   const [newGalleryColor, setNewGalleryColor] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
   const { data: images = [] } = useQuery({
     queryKey: ["images-category", categoryId],
