@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Pencil, FolderPlus, ArrowLeft, LayoutDashboard,
-  Image as ImageIcon, Layers, FolderOpen, Upload,
+  Image as ImageIcon, Layers, FolderOpen, Upload, FolderUp, Loader2,
 } from "lucide-react";
 import {
   fetchCategories,
