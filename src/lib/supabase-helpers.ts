@@ -69,6 +69,7 @@ export async function saveImageRecord(record: {
   size?: string;
   composition?: string;
   measurements?: string;
+  gallery_id?: string | null;
 }) {
   const { data, error } = await supabase.from("images").insert(record).select().single();
   if (error) throw error;
@@ -95,6 +96,23 @@ export async function addCategory(name: string) {
   return data;
 }
 
+export async function deleteCategory(id: string) {
+  // Delete all images in this category from storage first
+  const { data: images } = await supabase.from("images").select("file_path").eq("category_id", id);
+  if (images && images.length > 0) {
+    await supabase.storage.from("product-images").remove(images.map((i) => i.file_path));
+  }
+  // Delete galleries
+  await supabase.from("galleries").delete().eq("category_id", id);
+  // Delete images records
+  await supabase.from("images").delete().eq("category_id", id);
+  // Delete subcategories
+  await supabase.from("subcategories").delete().eq("category_id", id);
+  // Delete category
+  const { error } = await supabase.from("categories").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function addSubcategory(categoryId: string, name: string) {
   const { data, error } = await supabase
     .from("subcategories")
@@ -103,4 +121,73 @@ export async function addSubcategory(categoryId: string, name: string) {
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function deleteSubcategory(id: string) {
+  const { data: images } = await supabase.from("images").select("file_path").eq("subcategory_id", id);
+  if (images && images.length > 0) {
+    await supabase.storage.from("product-images").remove(images.map((i) => i.file_path));
+  }
+  await supabase.from("galleries").delete().eq("subcategory_id", id);
+  await supabase.from("images").delete().eq("subcategory_id", id);
+  const { error } = await supabase.from("subcategories").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Gallery helpers
+export async function fetchGalleries(categoryId: string, subcategoryId?: string | null) {
+  let query = supabase
+    .from("galleries")
+    .select("*")
+    .eq("category_id", categoryId)
+    .order("created_at", { ascending: false });
+
+  if (subcategoryId) {
+    query = query.eq("subcategory_id", subcategoryId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
+
+export async function createGallery(record: {
+  name: string;
+  category_id: string;
+  subcategory_id?: string | null;
+  color?: string | null;
+}) {
+  const { data, error } = await supabase.from("galleries").insert(record).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteGallery(id: string) {
+  // Delete images in gallery from storage
+  const { data: images } = await supabase.from("images").select("file_path").eq("gallery_id", id);
+  if (images && images.length > 0) {
+    await supabase.storage.from("product-images").remove(images.map((i) => i.file_path));
+  }
+  await supabase.from("images").delete().eq("gallery_id", id);
+  const { error } = await supabase.from("galleries").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function fetchImagesByGallery(galleryId: string) {
+  const { data, error } = await supabase
+    .from("images")
+    .select("*")
+    .eq("gallery_id", galleryId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function countImagesByCategory(categoryId: string) {
+  const { count, error } = await supabase
+    .from("images")
+    .select("*", { count: "exact", head: true })
+    .eq("category_id", categoryId);
+  if (error) throw error;
+  return count || 0;
 }

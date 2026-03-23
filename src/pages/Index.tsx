@@ -40,6 +40,10 @@ const Index = () => {
                 categoryName={selectedCategory.name}
                 selectedSubcategoryId={selectedSubcategoryId}
                 onSelectSubcategory={setSelectedSubcategoryId}
+                onCategoryDeleted={() => {
+                  setSelectedCategoryId(null);
+                  setSelectedSubcategoryId(null);
+                }}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground">

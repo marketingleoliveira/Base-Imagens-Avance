@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,15 +16,16 @@ import {
 
 interface ImageUploadFormProps {
   defaultCategoryId?: string;
+  defaultSubcategoryId?: string | null;
+  defaultGalleryId?: string | null;
   onSuccess?: () => void;
 }
 
-export function ImageUploadForm({ defaultCategoryId, onSuccess }: ImageUploadFormProps) {
-  const queryClient = useQueryClient();
+export function ImageUploadForm({ defaultCategoryId, defaultSubcategoryId, defaultGalleryId, onSuccess }: ImageUploadFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState(defaultCategoryId || "");
-  const [subcategoryId, setSubcategoryId] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState(defaultSubcategoryId || "");
   const [color, setColor] = useState("");
   const [size, setSize] = useState("");
   const [composition, setComposition] = useState("");
@@ -72,14 +73,11 @@ export function ImageUploadForm({ defaultCategoryId, onSuccess }: ImageUploadFor
         size: size || undefined,
         composition: composition || undefined,
         measurements: measurements || undefined,
+        gallery_id: defaultGalleryId || null,
       });
       toast.success("Imagem enviada com sucesso!");
-      queryClient.invalidateQueries({ queryKey: ["images"] });
-      queryClient.invalidateQueries({ queryKey: ["images-category", categoryId] });
       setFile(null);
       setPreview(null);
-      setCategoryId(defaultCategoryId || "");
-      setSubcategoryId("");
       setColor("");
       setSize("");
       setComposition("");
@@ -102,7 +100,6 @@ export function ImageUploadForm({ defaultCategoryId, onSuccess }: ImageUploadFor
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Upload area */}
       <div className="space-y-2">
         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Imagem</Label>
         <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-foreground/30 transition-colors bg-muted/30">
@@ -118,7 +115,6 @@ export function ImageUploadForm({ defaultCategoryId, onSuccess }: ImageUploadFor
         </label>
       </div>
 
-      {/* Category & Subcategory */}
       {!defaultCategoryId && (
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
@@ -146,7 +142,7 @@ export function ImageUploadForm({ defaultCategoryId, onSuccess }: ImageUploadFor
         </div>
       )}
 
-      {defaultCategoryId && subcategories.length > 0 && (
+      {defaultCategoryId && !defaultSubcategoryId && subcategories.length > 0 && (
         <div className="space-y-2">
           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subcategoria</Label>
           <Select value={subcategoryId} onValueChange={setSubcategoryId}>
@@ -160,13 +156,11 @@ export function ImageUploadForm({ defaultCategoryId, onSuccess }: ImageUploadFor
         </div>
       )}
 
-      {/* Color */}
       <div className="space-y-2">
         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cor</Label>
         <Input value={color} onChange={(e) => setColor(e.target.value)} placeholder="Ex: Preto, Branco" />
       </div>
 
-      {/* Size */}
       <div className="space-y-2">
         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tamanho</Label>
         <Select value={size} onValueChange={setSize}>
@@ -183,13 +177,11 @@ export function ImageUploadForm({ defaultCategoryId, onSuccess }: ImageUploadFor
         </Select>
       </div>
 
-      {/* Composition */}
       <div className="space-y-2">
         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Composição</Label>
         <Input value={composition} onChange={(e) => setComposition(e.target.value)} placeholder="Ex: 100% Algodão" />
       </div>
 
-      {/* Measurements */}
       <div className="space-y-2">
         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Medidas da Peça</Label>
         <Textarea
