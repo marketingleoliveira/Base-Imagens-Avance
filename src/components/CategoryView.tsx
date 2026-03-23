@@ -197,26 +197,21 @@ export function CategoryView({
           {subcategories.map((sub) => {
             const count = images.filter((img) => img.subcategory_id === sub.id).length;
             return (
-              <div key={sub.id} className="flex items-center gap-2">
-                <button
-                  onClick={() => onSelectSubcategory(sub.id)}
-                  className="flex-1 flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-accent transition-colors text-left"
-                >
-                  <span className="font-semibold tracking-wide">{sub.name}</span>
-                  <span className="text-sm text-muted-foreground">{count} peças</span>
-                </button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  onClick={() => {
-                    const subCount = images.filter((img) => img.subcategory_id === sub.id).length;
-                    setDeleteConfirm({ type: "subcategory", id: sub.id, name: sub.name, count: subCount });
-                  }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+              <SubcategoryDropCard
+                key={sub.id}
+                sub={sub}
+                categoryId={categoryId}
+                count={count}
+                onSelect={() => onSelectSubcategory(sub.id)}
+                onDelete={() => {
+                  const subCount = images.filter((img) => img.subcategory_id === sub.id).length;
+                  setDeleteConfirm({ type: "subcategory", id: sub.id, name: sub.name, count: subCount });
+                }}
+                onUploadSuccess={() => {
+                  queryClient.invalidateQueries({ queryKey: ["galleries", categoryId, sub.id] });
+                  queryClient.invalidateQueries({ queryKey: ["images-category", categoryId] });
+                }}
+              />
             );
           })}
         </div>
