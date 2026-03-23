@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Plus, ArrowLeft, Trash2, FolderPlus } from "lucide-react";
+import { Plus, ArrowLeft, Trash2, FolderPlus, FolderUp, Loader2 } from "lucide-react";
 import {
   fetchImagesByCategory,
   fetchSubcategories,
